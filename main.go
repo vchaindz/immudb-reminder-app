@@ -4,25 +4,48 @@ import (
 	"bufio"
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"os"
-
 	_ "github.com/codenotary/immudb/pkg/stdlib"
+
 )
 
-func main() {
-	db, err := sql.Open("immudb", "immudb://immudb:immudb@127.0.0.1:3322/defaultdb?sslmode=disable")
+type cfg struct {
+	IpAddr   string
+	Port     string
+	Username string
+	Password string
+	DBName   string
+}
 
+func parseConfig() (c cfg) {
+	flag.StringVar(&c.IpAddr, "addr", "localhost", "IP address of immudb server")
+	flag.StringVar(&c.Port, "port", "3322", "Port number of immudb server")
+	flag.StringVar(&c.Username, "user", "immudb", "Username for authenticating to immudb")
+	flag.StringVar(&c.Password, "pass", "immudb", "Password for authenticating to immudb")
+	flag.StringVar(&c.DBName, "db", "defaultdb", "Name of the database to use")
+	flag.Parse()
+	return
+}
+
+func main() {
+	c := parseConfig()
+        connstring := fmt.Sprintf("immudb://%s:%s@%s:%s/%s?sslmode=disable", c.Username, c.Password, c.IpAddr, c.Port, c.DBName )
+	db, err := sql.Open("immudb", connstring)
+	err = db.Ping()
 	if err != nil {
 		fmt.Println(err)
 		defer db.Close()
+		return
 	}
+
 	_, err = db.ExecContext(context.TODO(), "CREATE TABLE IF NOT EXISTS REMINDERS(id INTEGER AUTO_INCREMENT,title VARCHAR, description VARCHAR, alias VARCHAR, PRIMARY KEY id);")
 	if err != nil {
 		fmt.Println(err)
 	}
 	for {
-		fmt.Println("-> Welcome to Reminders Console App, built using Golang and immudb (https://immudb.io)")
+		fmt.Println("-> Welcome to Reminders Console App, built using Golang and Immudb")
 		fmt.Println("-> Select a numeric option; \n [1] Create a new Reminder \n [2] Get a reminder \n [3] Delete a reminder \n [4] Quit")
 		quitBool := ""
 		consoleReader := bufio.NewScanner(os.Stdin)
@@ -161,3 +184,4 @@ func deleteReminder(alias string, database *sql.DB) error {
 
 	return nil
 }
+
